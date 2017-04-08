@@ -48,14 +48,14 @@ public class Auto {
 	
 	private static void turn(double angle, double time, Side side){
 		double endTime = Timer.getFPGATimestamp() + time;
-		switch(side){
+		switch (side) {
 			case LEFT:
-				while(Timer.getFPGATimestamp() < endTime && Robot.gyro.getAngle() <= angle){
-					DriveSystem.robotDrive.mecanumDrive_Polar(0,0,0.5);
+				while (Timer.getFPGATimestamp() < endTime && Robot.gyro.getAngle() <= angle){
+					DriveSystem.robotDrive.mecanumDrive_Polar(0, 0, 0.5);
 				}
 			case RIGHT:
-				while(Timer.getFPGATimestamp() < endTime + time && Robot.gyro.getAngle() >= angle){
-					DriveSystem.robotDrive.mecanumDrive_Polar(0,0,-0.5);
+				while (Timer.getFPGATimestamp() < endTime + time && Robot.gyro.getAngle() >= angle){
+					DriveSystem.robotDrive.mecanumDrive_Polar(0, 0, -0.5);
 				}
 			default:
 				break;
