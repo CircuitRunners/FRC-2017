@@ -32,6 +32,7 @@ public class DriveSystem implements Runnable {
 	public static final double DIST_PER_PULSE = 0.001;
 
 	private static double smooth(double value) {
+		if (value > 0.99) return 1;
 		return Math.abs(value) > 0.1 ? Math.pow(value, 3) : 0;
 	}
 
@@ -51,15 +52,25 @@ public class DriveSystem implements Runnable {
 
 	@Override
 	public void run() {
-		// Use the joystick X axis for lateral movement, Y axis for forward
-		// movement, and Z axis for rotation.
-		double x = smooth(Robot.driver.getX(Hand.kLeft));
-		double y = smooth(Robot.driver.getY(Hand.kLeft));
-		double mag = Math.sqrt(x * x + y * y);
-		double dir = Math.toDegrees(Math.atan2(x, -y));
-		double t = smooth(Robot.driver.getX());
-
-		robotDrive.mecanumDrive_Polar(mag, dir, t);
+		if (Robot.driver.getBumper(Hand.kLeft)) {
+			// while left bumper, point turn counter clockwise
+			robotDrive.mecanumDrive_Polar(0, 0, -1);
+		} else if (Robot.driver.getBumper(Hand.kRight)) {
+			// while right bumper, point turn clockwise
+			robotDrive.mecanumDrive_Polar(0, 0, 1);
+		} else {
+			// if no bumper is pressed, use normal driving
+			double x = smooth(Robot.driver.getX(Hand.kLeft));
+			double y = smooth(Robot.driver.getY(Hand.kLeft));
+			// get magnitude of x and y left axes using pythag theorem
+			double mag = Math.sqrt(x * x + y * y);
+			// get angle between x and y left axes using arctan
+			double dir = Math.toDegrees(Math.atan2(x, -y));
+			// get right x axis for spin
+			double t = smooth(Robot.driver.getX());
+			// apply to drive
+			robotDrive.mecanumDrive_Polar(mag, dir, t);
+		}
 	}
 
 	/*
