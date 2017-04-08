@@ -27,14 +27,13 @@ public class Robot extends IterativeRobot {
 	public static VisionCamera camsys;
 	public static ADXRS450_Gyro gyro;
 	
-	SendableChooser<AutoMode> autoChooser;
+	SendableChooser<String> autoChooser;
 	
 	private ExecutorService teleopThreadPool;
 	private ExecutorService autoThreadPool;
 
 	private enum JoystickChannel {
-		DRIVER(0), 
-		OPERATOR(1),
+		DRIVER(0),
 		;
 
 		public int port;
@@ -45,17 +44,6 @@ public class Robot extends IterativeRobot {
 	}
 
 	public static XboxController driver = new XboxController(JoystickChannel.DRIVER.port);
-	public static XboxController operator = new XboxController(JoystickChannel.OPERATOR.port);
-	
-	private enum AutoMode {
-		LEFT,
-		RIGHT,
-		MID,
-		NONE,
-		TRACKING,
-		GYRO,
-		;
-	}
 
 	@Override
 	public void robotInit() {
@@ -65,14 +53,16 @@ public class Robot extends IterativeRobot {
 		camsys = new VisionCamera();
 		gyro = new ADXRS450_Gyro();
 		
+		camsys.setFeed(VisionCamera.FWD);
+		
 		// Construct auto selection
-		autoChooser = new SendableChooser<AutoMode>();
-		autoChooser.addDefault("Mid Auto", AutoMode.MID);
-		autoChooser.addObject("Left Auto", AutoMode.LEFT);
-		autoChooser.addObject("Right Auto", AutoMode.RIGHT);
-		autoChooser.addObject("None", AutoMode.NONE);
-		autoChooser.addObject("Tracking", AutoMode.TRACKING);
-		autoChooser.addObject("Gyro Test", AutoMode.GYRO);
+		autoChooser = new SendableChooser<String>();
+		autoChooser.addDefault("Mid Auto", "MID");
+		autoChooser.addObject("Left Auto", "LEFT");
+		autoChooser.addObject("Right Auto", "RIGHT");
+		autoChooser.addObject("None", "NONE");
+		autoChooser.addObject("Tracking", "TRACKING");
+		autoChooser.addObject("Gyro Test", "GYRO");
 		SmartDashboard.putData("Auto Chooser", autoChooser);
 	}
 	
@@ -117,23 +107,22 @@ public class Robot extends IterativeRobot {
 		gyro.reset();
 		DriveSystem.encoder.reset();
 		camsys.setTracking(true);
-		AutoMode selectedAuto = autoChooser.getSelected();
+		String selectedAuto = autoChooser.getSelected();
 		switch (selectedAuto) {
-			case RIGHT:
-				autoThread = () -> Auto.sidePegAuto(Side.RIGHT, 0.125, 0, 6, 2, -65, 2, 3, 3);
+			case "RIGHT":
+				autoThread = () -> Auto.sidePegAuto(Side.RIGHT, 0.25, 0, 6, 2, -65, 2, 3, 3);
 				break;
-			case LEFT:
-				autoThread = () -> Auto.sidePegAuto(Side.LEFT, 0.125, 0, 6, 2, 65, 2, 3, 3);
+			case "LEFT":
+				autoThread = () -> Auto.sidePegAuto(Side.LEFT, 0.25, 0, 6, 2, 65, 2, 3, 3);
 				break;
-			case MID:
-				autoThread = () -> Auto.autoDriveFwd(0.25, 6, 0, 2.25);
+			case "MID":
+				autoThread = () -> Auto.autoDriveFwd(0.25, 0, 6, 2.25);
 				break;
-			case TRACKING:
-				autoThread = () -> Auto.autoDriveFwdGyroVision(0.25, 6, 0, 2.25);
-			case GYRO:
-				autoThread = () -> Auto.autoDriveFwdGyro(0.25, 6, 0, 2.25);
-			default:
-			case NONE:
+			case "TRACKING":
+				autoThread = () -> Auto.autoDriveFwdGyroVision(0.25, 0, 6, 2.25);
+			case "GYRO":
+				autoThread = () -> Auto.autoDriveFwdGyro(0.25, 0, 6, 2.25);
+			case "NONE":
 				break;
 		}
 		if (autoThread != null) {
@@ -142,11 +131,11 @@ public class Robot extends IterativeRobot {
 	}
 	
 	private void awaitTerminationAndShutdown(ExecutorService pool) {
-		autoThreadPool.shutdownNow();
+		pool.shutdownNow();
 		try {
-			autoThreadPool.awaitTermination(1, TimeUnit.SECONDS);
+			pool.awaitTermination(1, TimeUnit.SECONDS);
 		} catch (InterruptedException e) {
-			autoThreadPool.shutdownNow();
+			pool.shutdownNow();
 		}
 	}
 

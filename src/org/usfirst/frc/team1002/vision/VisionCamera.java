@@ -8,7 +8,6 @@ import org.opencv.core.Point;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
-import org.usfirst.frc.team1002.robot.Robot;
 
 import edu.wpi.cscore.CvSink;
 import edu.wpi.cscore.CvSource;
@@ -16,7 +15,6 @@ import edu.wpi.cscore.UsbCamera;
 import edu.wpi.first.wpilibj.CameraServer;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.Utility;
-import edu.wpi.first.wpilibj.GenericHID.Hand;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 public class VisionCamera {
@@ -24,8 +22,8 @@ public class VisionCamera {
 	private CvSink fwdsink, bcksink, activesink;
 	private static double framedelay = 0.05;
 	private static int reswidth = 160, resheight = 120;
-	static final int FWD = 0;
-	static final int BCK = 1;
+	public static final int FWD = 0;
+	public static final int BCK = 1;
 	private boolean trackingOn = false;
 	private static ArrayList<MatOfPoint> contours;
 	static final int MAX_SIZE = 20;
@@ -61,7 +59,7 @@ public class VisionCamera {
 		}
 	}
 
-	void setFeed(int cam) {
+	public void setFeed(int cam) {
 		if (activeCamera == cam)
 			return;
 		if (cam == FWD) {
@@ -181,8 +179,9 @@ public class VisionCamera {
 				if (debugMode)
 					SmartDashboard.putNumber("CameraLoop", Utility.getFPGATime() - startTime);
 			}
+			/*
 			if (Robot.driver.getXButton()) {
-				if (Robot.operator.getBumper(Hand.kRight)) {
+				if (Robot.driver.getBumper(Hand.kRight)) {
 					if (activeCamera == FWD) {
 						setFeed(BCK);
 					} else {
@@ -198,6 +197,7 @@ public class VisionCamera {
 					}
 				}
 			}
+			*/
 			Timer.delay(framedelay);
 		}
 	}
