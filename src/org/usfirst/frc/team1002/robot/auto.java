@@ -2,10 +2,35 @@ package org.usfirst.frc.team1002.robot;
 
 import org.usfirst.frc.team1002.system.DriveSystem;
 
+import edu.wpi.first.wpilibj.ADXRS450_Gyro;
+import edu.wpi.first.wpilibj.CounterBase;
+import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 public class Auto {
+	
+	/**
+	 * The encoder, which counts rotations and calculates distance.
+	 */
+	public static Encoder encoder;
+	/**
+	 * The real world distance per encoder pulse.
+	 */
+	private static final double DIST_PER_PULSE = 0.001;
+	/**
+	 * The gyro.
+	 */
+	public static ADXRS450_Gyro gyro;
+	
+	public Auto() {
+		// initialize the preferred encoder with rising and falling edges on both channels
+		encoder = new Encoder(6, 7, false, CounterBase.EncodingType.k4X);
+		// set distance per pulse to calibrated value
+		encoder.setDistancePerPulse(DIST_PER_PULSE);
+		gyro = new ADXRS450_Gyro();
+	}
+	
 	public enum Side {
 		LEFT,
 		RIGHT,
@@ -17,7 +42,7 @@ public class Auto {
 		double distance = 0;
 		while (!Thread.interrupted() && Timer.getFPGATimestamp() < endTime && distance < targetDistance) {
 			DriveSystem.robotDrive.mecanumDrive_Polar(speed, angle, 0);
-			SmartDashboard.putNumber("Encoder", distance = DriveSystem.encoder.getDistance());
+			SmartDashboard.putNumber("Encoder", distance = encoder.getDistance());
 		}
 		DriveSystem.robotDrive.stopMotor();
 	}
@@ -26,8 +51,8 @@ public class Auto {
 		double endTime = Timer.getFPGATimestamp() + time;
 		double distance = 0;
 		while (!Thread.interrupted() && Timer.getFPGATimestamp() < endTime && distance < targetDistance) {
-			DriveSystem.robotDrive.mecanumDrive_Cartesian(Math.sin(angle) * speed, Math.cos(angle) * speed, 0, Robot.gyro.getAngle());
-			SmartDashboard.putNumber("Encoder", distance = DriveSystem.encoder.getDistance());
+			DriveSystem.robotDrive.mecanumDrive_Cartesian(Math.sin(angle) * speed, Math.cos(angle) * speed, 0, gyro.getAngle());
+			SmartDashboard.putNumber("Encoder", distance = encoder.getDistance());
 		}
 		DriveSystem.robotDrive.stopMotor();
 	}
@@ -36,8 +61,8 @@ public class Auto {
 		double endTime = Timer.getFPGATimestamp() + time;
 		double distance = 0;
 		while (!Thread.interrupted() && Timer.getFPGATimestamp() < endTime && distance < targetDistance) {
-			DriveSystem.robotDrive.mecanumDrive_Cartesian(Math.sin(angle) * speed, Math.cos(angle) * speed, 0, Robot.gyro.getAngle());
-			SmartDashboard.putNumber("Encoder", distance = DriveSystem.encoder.getDistance());
+			DriveSystem.robotDrive.mecanumDrive_Cartesian(Math.sin(angle) * speed, Math.cos(angle) * speed, 0, gyro.getAngle());
+			SmartDashboard.putNumber("Encoder", distance = encoder.getDistance());
 		}
 		DriveSystem.robotDrive.stopMotor();
 	}
@@ -46,12 +71,12 @@ public class Auto {
 		double endTime = Timer.getFPGATimestamp() + time;
 		switch (side) {
 			case LEFT:
-				while (!Thread.interrupted() && Timer.getFPGATimestamp() < endTime && Robot.gyro.getAngle() <= angle){
+				while (!Thread.interrupted() && Timer.getFPGATimestamp() < endTime && gyro.getAngle() <= angle){
 					DriveSystem.robotDrive.mecanumDrive_Polar(0, 0, 0.5);
 				}
 				break;
 			case RIGHT:
-				while (!Thread.interrupted() && Timer.getFPGATimestamp() < endTime + time && Robot.gyro.getAngle() >= angle){
+				while (!Thread.interrupted() && Timer.getFPGATimestamp() < endTime + time && gyro.getAngle() >= angle){
 					DriveSystem.robotDrive.mecanumDrive_Polar(0, 0, -0.5);
 				}
 				break;

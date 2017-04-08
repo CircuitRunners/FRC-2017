@@ -7,9 +7,8 @@ import java.util.concurrent.TimeUnit;
 import org.usfirst.frc.team1002.robot.Auto.Side;
 import org.usfirst.frc.team1002.system.ClimbSystem;
 import org.usfirst.frc.team1002.system.DriveSystem;
-import org.usfirst.frc.team1002.vision.VisionCamera;
+import org.usfirst.frc.team1002.vision.CameraSystem;
 
-import edu.wpi.first.wpilibj.ADXRS450_Gyro;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
@@ -17,23 +16,30 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
 /**
  * The base robot class.
- * 
- * @author Nathan Pendergrast, Nigel Nderi
  */
 public class Robot extends IterativeRobot {
 
+	/**
+	 * The drive system.
+	 */
 	public static DriveSystem drive;
+	/**
+	 * The climber.
+	 */
 	private static ClimbSystem climber;
-	public static VisionCamera camsys;
-	public static ADXRS450_Gyro gyro;
-	
-	private static SendableChooser<String> autoChooser;
-	
-	private static Runnable autoThread;
-	public static ExecutorService autoThreadPool;
-	public static ExecutorService teleopThreadPool;
+	/**
+	 * The camera.
+	 */
+	public static CameraSystem camsys;
 
+	
+	/**
+	 * Input ports.
+	 */
 	private enum JoystickChannel {
+		/**
+		 * The main input from the driver.
+		 */
 		DRIVER(0),
 		;
 
@@ -44,15 +50,35 @@ public class Robot extends IterativeRobot {
 		}
 	}
 
-	public static XboxController driver = new XboxController(JoystickChannel.DRIVER.port);
+	/**
+	 * The main input for the driver, an Xbox 360 controller.
+	 */
+	public static XboxController driver;
+	
+	private static SendableChooser<String> autoChooser;
+	
+	private static Runnable autoThread;
+	public static ExecutorService autoThreadPool;
+	public static ExecutorService teleopThreadPool;
+	
+	/**
+	 * Check if this our first time going through any actionable code paths.
+	 */
+	public static boolean firstRun;
 
 	@Override
 	public void robotInit() {
 		// Init systems
 		drive = new DriveSystem();
+		new Auto();
 		climber = new ClimbSystem();
-		camsys = new VisionCamera();
-		gyro = new ADXRS450_Gyro();
+		camsys = new CameraSystem();
+		
+		// Init input
+		driver = new XboxController(JoystickChannel.DRIVER.port);
+		
+		// Prevent from running things in robot actions that happen in initialization
+		firstRun = true;
 		
 		// Construct auto selection
 		autoChooser = new SendableChooser<String>();
@@ -72,16 +98,10 @@ public class Robot extends IterativeRobot {
 
 	@Override
 	public void teleopInit() {
-		if (autoThreadPool != null) {
-			awaitTerminationAndShutdown(autoThreadPool);
-			autoThreadPool = null;
-		}
-		if (teleopThreadPool != null) {
-			awaitTerminationAndShutdown(teleopThreadPool);
-		}
+		// prepare the robot for teleop
+		runInit(true);
+		// create a new teleop thread pool
 		teleopThreadPool = Executors.newCachedThreadPool();
-		gyro.reset();
-		DriveSystem.encoder.reset();
 	}
 
 	@Override
@@ -92,16 +112,11 @@ public class Robot extends IterativeRobot {
 	
 	@Override
 	public void autonomousInit() {
-		if (teleopThreadPool != null) {
-			awaitTerminationAndShutdown(teleopThreadPool);
-			teleopThreadPool = null;
-		}
-		if (autoThreadPool != null) {
-			awaitTerminationAndShutdown(autoThreadPool);
-		}
+		// prepare the robot for autonomous
+		runInit(false);
+		// create a new autonomous thread pool
 		autoThreadPool = Executors.newCachedThreadPool();
-		gyro.reset();
-		DriveSystem.encoder.reset();
+		
 		String selectedAuto = autoChooser.getSelected();
 		switch (selectedAuto) {
 			case "RIGHT":
@@ -132,13 +147,16 @@ public class Robot extends IterativeRobot {
 	
 	@Override
 	public void disabledInit() {
-		if (teleopThreadPool != null) {
-			awaitTerminationAndShutdown(teleopThreadPool);
-			teleopThreadPool = null;
-		}
-		if (autoThreadPool != null) {
-			awaitTerminationAndShutdown(autoThreadPool);
-			autoThreadPool = null;
+		// nothing needs to be cleaned up if we haven't run yet
+		if (!firstRun) {
+			if (teleopThreadPool != null) {
+				awaitTerminationAndShutdown(teleopThreadPool);
+				teleopThreadPool = null;
+			}
+			if (autoThreadPool != null) {
+				awaitTerminationAndShutdown(autoThreadPool);
+				autoThreadPool = null;
+			}
 		}
 	}
 	
@@ -147,6 +165,45 @@ public class Robot extends IterativeRobot {
 		
 	}
 	
+	/**
+	 * Sets up the robot for the runnable actions: teleop or autonomous.
+	 * 
+	 * @param toggle True for teleop, false for autonomous.
+	 */
+	private static void runInit(boolean toggle) {
+		if (!firstRun) {
+			ExecutorService oldPool = toggle ? autoThreadPool : teleopThreadPool;
+			// remove auto thread pool during teleop
+			if (oldPool != null) {
+				awaitTerminationAndShutdown(oldPool);
+				if (toggle) {
+					autoThreadPool = null;
+				} else {
+					teleopThreadPool = null;
+				}
+			}
+			ExecutorService newPool = toggle ? teleopThreadPool : autoThreadPool;
+			// cleanup previous teleop thread pools
+			if (newPool != null) {
+				awaitTerminationAndShutdown(newPool);
+			}
+			// reset the gyro from previous runs
+			Auto.gyro.reset();
+			// reset the encoder from previous runs
+			Auto.encoder.reset();
+		} else {
+			// it's not the first run anymore
+			firstRun = false;
+		}
+	}
+	
+	/**
+	 * Safely shuts the specified thread pool down.
+	 * 
+	 * Based upon the example code in {@link ExecutorService}'s Javadoc.
+	 * 
+	 * @param pool The executor service
+	 */
 	private static void awaitTerminationAndShutdown(final ExecutorService pool) {
 		pool.shutdownNow();
 		try {
