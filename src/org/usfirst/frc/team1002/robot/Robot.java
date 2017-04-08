@@ -82,8 +82,6 @@ public class Robot extends IterativeRobot {
 		teleopThreadPool = Executors.newCachedThreadPool();
 		gyro.reset();
 		DriveSystem.encoder.reset();
-		camsys.setTracking(false);
-		teleopThreadPool.execute(() -> camsys.cameraOperation());
 	}
 
 	@Override
@@ -104,7 +102,6 @@ public class Robot extends IterativeRobot {
 		autoThreadPool = Executors.newCachedThreadPool();
 		gyro.reset();
 		DriveSystem.encoder.reset();
-		camsys.setTracking(true);
 		String selectedAuto = autoChooser.getSelected();
 		switch (selectedAuto) {
 			case "RIGHT":
@@ -126,7 +123,6 @@ public class Robot extends IterativeRobot {
 		if (autoThread != null) {
 			autoThreadPool.execute(autoThread);
 		}
-		autoThreadPool.execute(() -> camsys.cameraOperation());
 	}
 
 	@Override

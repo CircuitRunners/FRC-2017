@@ -15,6 +15,8 @@ public class ClimbSystem implements Runnable {
 
 	@Override
 	public void run() {
-		motor.set(-Math.pow(Robot.driver.getTriggerAxis(Hand.kRight), 2));
+		if (!Thread.interrupted()) {
+			motor.set(-Math.pow(Robot.driver.getTriggerAxis(Hand.kRight), 2));
+		}
 	}
 }

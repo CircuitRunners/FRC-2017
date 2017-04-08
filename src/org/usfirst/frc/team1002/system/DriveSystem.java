@@ -37,51 +37,47 @@ public class DriveSystem implements Runnable {
 	}
 
 	public DriveSystem() {
+		// initialize the preferred encoder
 		encoder = new Encoder(6, 7, false, CounterBase.EncodingType.k4X);
+		// 
 		encoder.setDistancePerPulse(DIST_PER_PULSE);
 
+		// initialize new robot drive with Victor SPs
 		robotDrive = new RobotDrive(
 				new VictorSP(Channel.FRONT_LEFT.port), 
 				new VictorSP(Channel.REAR_LEFT.port), 
 				new VictorSP(Channel.FRONT_RIGHT.port),
 				new VictorSP(Channel.REAR_RIGHT.port));
 
+		// invert front left and back left motors
 		robotDrive.setInvertedMotor(MotorType.kFrontLeft, true);
 		robotDrive.setInvertedMotor(MotorType.kRearLeft, true);
 	}
 
 	@Override
 	public void run() {
-		if (Robot.driver.getBumper(Hand.kLeft)) {
-			// while left bumper, point turn counter clockwise
-			robotDrive.mecanumDrive_Polar(0, 0, -1);
-		} else if (Robot.driver.getBumper(Hand.kRight)) {
-			// while right bumper, point turn clockwise
-			robotDrive.mecanumDrive_Polar(0, 0, 1);
-		} else {
-			// if no bumper is pressed, use normal driving
-			double x = smooth(Robot.driver.getX(Hand.kLeft));
-			double y = smooth(Robot.driver.getY(Hand.kLeft));
-			// get magnitude of x and y left axes using pythag theorem
-			double mag = Math.sqrt(x * x + y * y);
-			// get angle between x and y left axes using arctan
-			double dir = Math.toDegrees(Math.atan2(x, -y));
-			// get right x axis for spin
-			double t = smooth(Robot.driver.getX());
-			// apply to drive
-			robotDrive.mecanumDrive_Polar(mag, dir, t);
+		// don't run this threaded operation if we've been interrupted
+		if (!Thread.interrupted()) {
+			// main drive branching
+			if (Robot.driver.getBumper(Hand.kLeft)) {
+				// while left bumper, point turn counter clockwise
+				robotDrive.mecanumDrive_Polar(0, 0, -1);
+			} else if (Robot.driver.getBumper(Hand.kRight)) {
+				// while right bumper, point turn clockwise
+				robotDrive.mecanumDrive_Polar(0, 0, 1);
+			} else {
+				// if no bumper is pressed, use normal driving
+				double x = smooth(Robot.driver.getX(Hand.kLeft));
+				double y = smooth(Robot.driver.getY(Hand.kLeft));
+				// get magnitude of x and y left axes using pythag theorem
+				double mag = Math.sqrt(x * x + y * y);
+				// get angle between x and y left axes using arctan
+				double dir = Math.toDegrees(Math.atan2(x, -y));
+				// get right x axis for spin
+				double t = smooth(Robot.driver.getX());
+				// apply to drive
+				robotDrive.mecanumDrive_Polar(mag, dir, t);
+			}
 		}
 	}
-
-	/*
-	private AnalogInput UltraIn = new AnalogInput(0);
-
-	public double sonarDistance() {
-		double voltage = UltraIn.getValue();
-		double dist;
-		voltage = voltage - 0.03;
-		dist = voltage / 0.38582;
-		return dist;
-	}
-	*/
 }
