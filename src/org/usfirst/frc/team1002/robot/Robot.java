@@ -2,12 +2,15 @@ package org.usfirst.frc.team1002.robot;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
-import org.usfirst.frc.team1002.system.RobotSystem;
+import org.usfirst.frc.team1002.robot.Auto.Side;
+import org.usfirst.frc.team1002.system.ClimbSystem;
+import org.usfirst.frc.team1002.system.DriveSystem;
+import org.usfirst.frc.team1002.vision.VisionCamera;
 
 import edu.wpi.first.wpilibj.ADXRS450_Gyro;
 import edu.wpi.first.wpilibj.IterativeRobot;
-import edu.wpi.first.wpilibj.Joystick;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
@@ -18,23 +21,21 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
  * @author Nathan Pendergrast, Nigel Nderi
  */
 public class Robot extends IterativeRobot {
-	static double lastY;
-	public static ADXRS450_Gyro gyro;
-	public static double lastT;
-	public static double degreeChange;
-	
-	public static myDrive mechdrive;
-	private static climbingMech climber;
-	private static shootingMech shooter;
-	public static camSystemV camsys = new camSystemV();
-	
-	SendableChooser<String> autoChooser;
-	
-	// intakeSystem intake = new intakeSystem();
-	static motorBallDump ballDump;
 
-	public enum JoystickChannel {
-		DRIVER(0), OPERATOR(1),;
+	public static DriveSystem drive;
+	private static ClimbSystem climber;
+	public static VisionCamera camsys;
+	public static ADXRS450_Gyro gyro;
+	
+	SendableChooser<AutoMode> autoChooser;
+	
+	private ExecutorService teleopThreadPool;
+	private ExecutorService autoThreadPool;
+
+	private enum JoystickChannel {
+		DRIVER(0), 
+		OPERATOR(1),
+		;
 
 		public int port;
 
@@ -45,88 +46,129 @@ public class Robot extends IterativeRobot {
 
 	public static XboxController driver = new XboxController(JoystickChannel.DRIVER.port);
 	public static XboxController operator = new XboxController(JoystickChannel.OPERATOR.port);
-
+	
+	private enum AutoMode {
+		LEFT,
+		RIGHT,
+		MID,
+		NONE,
+		TRACKING,
+		GYRO,
+		;
+	}
 
 	@Override
 	public void robotInit() {
-		mechdrive = new myDrive();
-		climber = new climbingMech();
-		autoChooser = new SendableChooser<String>();
-		autoChooser.addObject("Left Auto", "left");
-		autoChooser.addObject("Right Auto", "right");
-		autoChooser.addDefault("Mid Auto", "mid");
-		autoChooser.addObject("None", "none");
-		autoChooser.addObject("Tracking", "tracking");
-		autoChooser.addObject("gyroTEST", "gyro");
-		SmartDashboard.putData("Auto Chooser", autoChooser);
-		shooter = new shootingMech();
+		// Init systems
+		drive = new DriveSystem();
+		climber = new ClimbSystem();
+		camsys = new VisionCamera();
 		gyro = new ADXRS450_Gyro();
-		ballDump = new motorBallDump();
-		// intake.init();
-		// operatorMode();
+		
+		// Construct auto selection
+		autoChooser = new SendableChooser<AutoMode>();
+		autoChooser.addDefault("Mid Auto", AutoMode.MID);
+		autoChooser.addObject("Left Auto", AutoMode.LEFT);
+		autoChooser.addObject("Right Auto", AutoMode.RIGHT);
+		autoChooser.addObject("None", AutoMode.NONE);
+		autoChooser.addObject("Tracking", AutoMode.TRACKING);
+		autoChooser.addObject("Gyro Test", AutoMode.GYRO);
+		SmartDashboard.putData("Auto Chooser", autoChooser);
 	}
-
-	private ExecutorService threadPool = Executors.newCachedThreadPool();
-	private RobotSystemThread driveThread;
+	
+	@Override
+	public void robotPeriodic() {
+		
+	}
 
 	@Override
 	public void teleopInit() {
+		if (autoThreadPool != null) {
+			awaitTerminationAndShutdown(autoThreadPool);
+			autoThreadPool = null;
+		}
+		if (teleopThreadPool != null) {
+			awaitTerminationAndShutdown(teleopThreadPool);
+		}
+		teleopThreadPool = Executors.newCachedThreadPool();
+		gyro.reset();
+		DriveSystem.encoder.reset();
 		camsys.setTracking(false);
-		driveThread = new RobotSystemThread(mechdrive);
 	}
 
 	@Override
 	public void teleopPeriodic() {
-		// intake.teleOp();
-		threadPool.execute(driveThread);
-		climber.teleOp();
-		shooter.teleOp();
-		// servoBallDump.teleOp();
+		teleopThreadPool.execute(drive);
+		teleopThreadPool.execute(climber);
 	}
 
-	public class RobotSystemThread implements Runnable {
-
-		private RobotSystem system;
-
-		public RobotSystemThread(RobotSystem system) {
-			this.system = system;
+	private Runnable autoThread;
+	
+	@Override
+	public void autonomousInit() {
+		if (teleopThreadPool != null) {
+			awaitTerminationAndShutdown(teleopThreadPool);
+			teleopThreadPool = null;
 		}
-
-		@Override
-		public void run() {
-			system.teleop();
+		if (autoThreadPool != null) {
+			awaitTerminationAndShutdown(autoThreadPool);
+		}
+		autoThreadPool = Executors.newCachedThreadPool();
+		gyro.reset();
+		DriveSystem.encoder.reset();
+		camsys.setTracking(true);
+		AutoMode selectedAuto = autoChooser.getSelected();
+		switch (selectedAuto) {
+			case RIGHT:
+				autoThread = () -> Auto.sidePegAuto(Side.RIGHT, 0.125, 0, 6, 2, -65, 2, 3, 3);
+				break;
+			case LEFT:
+				autoThread = () -> Auto.sidePegAuto(Side.LEFT, 0.125, 0, 6, 2, 65, 2, 3, 3);
+				break;
+			case MID:
+				autoThread = () -> Auto.autoDriveFwd(0.25, 6, 0, 2.25);
+				break;
+			case TRACKING:
+				autoThread = () -> Auto.autoDriveFwdGyroVision(0.25, 6, 0, 2.25);
+			case GYRO:
+				autoThread = () -> Auto.autoDriveFwdGyro(0.25, 6, 0, 2.25);
+			default:
+			case NONE:
+				break;
+		}
+		if (autoThread != null) {
+			autoThreadPool.execute(autoThread);
+		}
+	}
+	
+	private void awaitTerminationAndShutdown(ExecutorService pool) {
+		autoThreadPool.shutdownNow();
+		try {
+			autoThreadPool.awaitTermination(1, TimeUnit.SECONDS);
+		} catch (InterruptedException e) {
+			autoThreadPool.shutdownNow();
 		}
 	}
 
 	@Override
 	public void autonomousPeriodic() {
-
+		
 	}
-
+	
 	@Override
-	public void autonomousInit() {
-		gyro.reset();
-		camsys.setTracking(true);
-		String selectedAuto = autoChooser.getSelected();
-		switch (selectedAuto) {
-		case "right":
-			auto.sidePegAuto("right", 0.125, 6, 2, -65, 2, 3, 3);
-			break;
-		case "left":
-			auto.sidePegAuto("left", 0.125, 6, 2, 65, 2, 3, 3);
-			break;
-		case "mid":
-			auto.autoDriveFwd(0.25, 6, 2.25);
-			break;
-		case "none":
-			break;
-		case "default":
-			auto.midPegAuto(0.25, 3, 3);
-		case "tracking":
-			auto.autoDriveFwdGyroVision(0.25, 6, 2.25);
-		case "gyro":
-			auto.autoDriveFwdGyro(0.25, 6, 2.25);
+	public void disabledInit() {
+		if (teleopThreadPool != null) {
+			awaitTerminationAndShutdown(teleopThreadPool);
+			teleopThreadPool = null;
 		}
-		//camsys.setTracking(false);
+		if (autoThreadPool != null) {
+			awaitTerminationAndShutdown(autoThreadPool);
+			autoThreadPool = null;
+		}
+	}
+	
+	@Override
+	public void disabledPeriodic() {
+		
 	}
 }
