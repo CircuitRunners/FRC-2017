@@ -37,7 +37,6 @@ public class DriveSystem implements Runnable {
 
 	public DriveSystem() {
 		encoder = new Encoder(6, 7, false, CounterBase.EncodingType.k4X);
-		encoder.reset();
 		encoder.setDistancePerPulse(DIST_PER_PULSE);
 
 		robotDrive = new RobotDrive(
