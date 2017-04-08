@@ -29,18 +29,6 @@ public class VisionCamera {
 	static final int MAX_SIZE = 20;
 
 	int activeCamera = -1;
-	Thread camThread;
-
-	public VisionCamera() {
-		camThread = new Thread(new Runnable() {
-			public void run() {
-				cameraOperation();
-			}
-		});
-		camThread.setName("CameraThread");
-		camThread.start();
-	}
-
 	double internal_xAngle = 0.0, internal_zAngle = 0.0;
 	public double external_xAngle = 0, external_zAngle = 0;
 	boolean internal_TargetFound = false;
@@ -82,7 +70,7 @@ public class VisionCamera {
 		return temp;
 	}
 
-	protected void cameraOperation() {
+	public void cameraOperation() {
 		GripPipeline gripProcessor = new GripPipeline();
 		boolean debugMode = true;
 		boolean targetFound = false;

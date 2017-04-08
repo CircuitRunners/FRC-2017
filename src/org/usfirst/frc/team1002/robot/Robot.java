@@ -27,10 +27,11 @@ public class Robot extends IterativeRobot {
 	public static VisionCamera camsys;
 	public static ADXRS450_Gyro gyro;
 	
-	SendableChooser<String> autoChooser;
+	private static SendableChooser<String> autoChooser;
 	
-	private ExecutorService teleopThreadPool;
-	private ExecutorService autoThreadPool;
+	private static Runnable autoThread;
+	public static ExecutorService autoThreadPool;
+	public static ExecutorService teleopThreadPool;
 
 	private enum JoystickChannel {
 		DRIVER(0),
@@ -52,8 +53,6 @@ public class Robot extends IterativeRobot {
 		climber = new ClimbSystem();
 		camsys = new VisionCamera();
 		gyro = new ADXRS450_Gyro();
-		
-		camsys.setFeed(VisionCamera.FWD);
 		
 		// Construct auto selection
 		autoChooser = new SendableChooser<String>();
@@ -84,6 +83,7 @@ public class Robot extends IterativeRobot {
 		gyro.reset();
 		DriveSystem.encoder.reset();
 		camsys.setTracking(false);
+		teleopThreadPool.execute(() -> camsys.cameraOperation());
 	}
 
 	@Override
@@ -91,8 +91,6 @@ public class Robot extends IterativeRobot {
 		teleopThreadPool.execute(drive);
 		teleopThreadPool.execute(climber);
 	}
-
-	private Runnable autoThread;
 	
 	@Override
 	public void autonomousInit() {
@@ -128,15 +126,7 @@ public class Robot extends IterativeRobot {
 		if (autoThread != null) {
 			autoThreadPool.execute(autoThread);
 		}
-	}
-	
-	private void awaitTerminationAndShutdown(ExecutorService pool) {
-		pool.shutdownNow();
-		try {
-			pool.awaitTermination(1, TimeUnit.SECONDS);
-		} catch (InterruptedException e) {
-			pool.shutdownNow();
-		}
+		autoThreadPool.execute(() -> camsys.cameraOperation());
 	}
 
 	@Override
@@ -159,5 +149,14 @@ public class Robot extends IterativeRobot {
 	@Override
 	public void disabledPeriodic() {
 		
+	}
+	
+	private static void awaitTerminationAndShutdown(final ExecutorService pool) {
+		pool.shutdownNow();
+		try {
+			pool.awaitTermination(1, TimeUnit.SECONDS);
+		} catch (InterruptedException e) {
+			pool.shutdownNow();
+		}
 	}
 }

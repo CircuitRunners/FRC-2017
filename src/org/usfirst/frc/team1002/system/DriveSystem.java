@@ -15,6 +15,8 @@ public class DriveSystem implements Runnable {
 	public static RobotDrive robotDrive;
 	public static Encoder encoder; 
 
+	public static final double DIST_PER_PULSE = 0.001;
+	
 	private enum Channel {
 		FRONT_LEFT(8), 
 		REAR_LEFT(9), 
@@ -28,8 +30,6 @@ public class DriveSystem implements Runnable {
 			this.port = port;
 		}
 	}
-
-	public static final double DIST_PER_PULSE = 0.001;
 
 	private static double smooth(double value) {
 		if (value > 0.99) return 1;
